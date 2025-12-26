@@ -1,0 +1,150 @@
+---
+- name: "Configure app image"
+  hosts: web
+  become: yes
+  vars:
+    app_image: "familytree:latest"
+    app_container_name: "familytreevault"
+    app_remote_path: "/home/ubuntu/app"
+    container_user_uid: 1000
+    container_user_name: "ubuntu"
+    http_port: 80
+
+  tasks:
+    - name: "Update apt cache"
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: "Install common prerequisites"
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg
+          - lsb-release
+          - python3-pip
+          - rsync
+        state: present
+        update_cache: yes
+
+    - name: "Add Docker GPG key"
+      apt_key:
+        url: "https://download.docker.com/linux/ubuntu/gpg"
+        state: present
+
+    - name: "Add Docker repo (Ubuntu-specific)"
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+        state: present
+
+    - name: "Install Docker packages"
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: latest
+        update_cache: yes
+
+    - name: "Ensure docker service is enabled and started"
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: "Add ubuntu user to docker group"
+      user:
+        name: "{{ container_user_name }}"
+        groups: docker
+        append: yes
+
+    - name: "Install sqlite3 and dev packages"
+      apt:
+        name:
+          - sqlite3
+          - libsqlite3-dev
+        state: present
+        update_cache: yes
+        
+    - name: "Ensure persistent DB directory exists"
+      file:
+        path: /home/ubuntu/familytree-data
+        state: directory
+        owner: "{{ container_user_name }}"
+        group: "{{ container_user_name }}"
+        mode: '0755'
+
+
+    - name: "Ensure parent directory for app_remote_path exists"
+      file:
+        path: "{{ app_remote_path | dirname }}"
+        state: directory
+        owner: "{{ container_user_name }}"
+        group: "{{ container_user_name }}"
+        mode: '0755'
+
+    - name: "Synchronize app/ -> remote (excludes runtime data)"
+      synchronize:
+        src: "{{ playbook_dir }}/../app/"
+        dest: "{{ app_remote_path }}/"
+        archive: yes
+        delete: no
+        rsync_opts:
+          - "--exclude=data"
+
+    - name: "Fix ownership of deployed app files"
+      file:
+        path: "{{ app_remote_path }}"
+        state: directory
+        recurse: yes
+        owner: "{{ container_user_name }}"
+        group: "{{ container_user_name }}"
+        mode: '0755'
+
+    - name: "Build Docker image from app folder"
+      shell: |
+        docker build -t {{ app_image }} {{ app_remote_path }}
+      args:
+        chdir: "{{ app_remote_path }}"
+      register: docker_build
+      failed_when: docker_build.rc != 0
+
+    - name: "Ensure old container removed (if exists)"
+      docker_container:
+        name: "{{ app_container_name }}"
+        state: absent
+        force_kill: yes
+      ignore_errors: yes
+
+    - name: "Run container (mount DB dir, set env)"
+      docker_container:
+        name: "{{ app_container_name }}"
+        image: "{{ app_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ http_port }}:80"
+        volumes:
+          - /home/ubuntu/familytree-data:/app/data
+        env:
+          SQLITE_DB_PATH: /app/data/familytree.db
+        user: "{{ container_user_uid }}:{{ container_user_uid }}"
+        detach: true
+
+    - name: "Wait for app to respond on HTTP (delegated to remote host)"
+      uri:
+        url: "http://127.0.0.1:{{ http_port }}/api/health"
+        status_code: 200
+        return_content: yes
+      register: healthcheck
+      retries: 10
+      delay: 5
+      until: healthcheck.status == 200
+      delegate_to: "{{ inventory_hostname }}"
+
+    - name: "Show app health output"
+      debug:
+        msg: "{{ healthcheck.content }}"

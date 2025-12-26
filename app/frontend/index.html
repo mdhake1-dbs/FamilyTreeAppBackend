@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Family Tree Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="auth-container">
+        <h1 class="auth-title">Family Tree Manager</h1>
+        <div id="authMessage" class="message"></div>
+
+        <div class="auth-tabs">
+            <button id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+            <button id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+        </div>
+
+        <form id="loginForm">
+            <label>Username</label>
+            <input id="loginUsername" required />
+            <label>Password</label>
+            <input id="loginPassword" type="password" required />
+            <button type="submit" class="btn-full">Login</button>
+        </form>
+
+        <form id="registerForm" class="hidden">
+            <label>Username *</label>
+            <input id="regUsername" required />
+            <label>Password * (min 6)</label>
+            <input id="regPassword" type="password" required minlength="6" />
+            <label>Email</label>
+            <input id="regEmail" type="email" />
+            <label>Full Name</label>
+            <input id="regFullName" />
+            <button type="submit" class="btn-full">Register</button>
+        </form>
+    </div>
+
+    <!-- APP SCREEN -->
+    <div id="appScreen" class="hidden app-wrapper">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>Family Tree Manager</h1>
+                    <p class="subtitle">Manage Your Family Tree</p>
+                </div>
+                <div class="user-info">
+                    <span id="currentUserName" class="user-name"></span>
+                    <button onclick="showHome()">Home</button>
+                    <button onclick="toggleProfile()">Profile</button>
+                    <button onclick="logout()" class="secondary">Logout</button>
+                </div>
+            </div>
+
+            <div class="layout">
+                <!-- LEFT SIDEBAR -->
+                <div class="sidebar">
+                    <h3>Navigation</h3>
+                    <button class="nav-btn" onclick="showAddPerson()">Add Person</button>
+                    <button class="nav-btn" onclick="showPeople()">People</button>
+                    <button class="nav-btn" onclick="showAddRelationship()">Add Relationship</button>
+                    <button class="nav-btn" onclick="showViewRelationships()">View Relationships</button>
+                    <button class="nav-btn" onclick="showAddEvent()">Add Event</button>
+                    <button class="nav-btn" onclick="showViewEvents()">View Events</button>
+                </div>
+
+                <!-- MAIN CONTENT -->
+                <div class="main-content">
+                    <div id="messageBox" class="message"></div>
+
+                    <!-- HOMEPAGE -->
+                    <div id="homePage" class="homepage">
+                        <div class="homepage-inner">
+                            <h2>Welcome to your Family Tree</h2>
+                            <p class="homepage-text">
+                                This site lets you add family members, record relationships, view and edit entries, and maintain a soft-deleted archive.
+                                Use <strong>Add Person</strong> to create entries and <strong>People</strong> to see and manage your family members.
+                            </p>
+                            <div class="homepage-actions">
+                                <button onclick="showAddPerson()">Add Person</button>
+                                <button onclick="showPeople()">People</button>
+                                <button onclick="showViewRelationships()">Relationships</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PROFILE -->
+                    <div id="profileSection" class="hidden section profile-section">
+                        <div class="profile-box">
+                            <h3>Edit Profile</h3>
+                            <div id="profileMsg" class="message"></div>
+                            <label>Full name</label>
+                            <input id="profileFullName" />
+                            <label>Email</label>
+                            <input id="profileEmail" type="email" />
+                            <label>New password (leave blank to keep current)</label>
+                            <input id="profilePassword" type="password" />
+                            <div class="profile-actions">
+                                <button onclick="saveProfile()">Save</button>
+                                <button class="secondary" onclick="toggleProfile()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ADD / EDIT PERSON FORM -->
+                    <div id="personFormSection" class="section hidden">
+                        <h2 id="formTitle">Add New Person</h2>
+                        <form id="personForm">
+                            <input type="hidden" id="personId" />
+
+                            <label>Given Name *</label>
+                            <input id="givenName" required />
+
+                            <label>Family Name *</label>
+                            <input id="familyName" required />
+
+                            <label>Other Names</label>
+                            <input id="otherNames" />
+
+                            <label>Gender</label>
+                            <select id="gender">
+                                <option value="">Select...</option>
+                                <option>Male</option>
+                                <option>Female</option>
+                                <option>Other</option>
+                            </select>
+
+                            <label>Life Status</label>
+                            <select id="lifeStatus" onchange="toggleDeathDate()">
+                                <option value="alive">Alive</option>
+                                <option value="deceased">Deceased</option>
+                            </select>
+
+                            <label>Birth Date</label>
+                            <input id="birthDate" type="date" />
+
+                            <div id="deathDateGroup" class="hidden">
+                                <label>Death Date</label>
+                                <input id="deathDate" type="date" />
+                            </div>
+
+                            <label>Birth Place</label>
+                            <input id="birthPlace" />
+
+                            <label>Relation (free text / notes)</label>
+                            <input id="relation" placeholder="e.g. son of John Doe, spouse of Jane..." />
+
+                            <label>Biography</label>
+                            <textarea id="bio"></textarea>
+
+                            <div class="form-actions">
+                                <button type="submit" id="submitBtn">Add Person</button>
+                                <button type="button" class="secondary" onclick="cancelAddEdit()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- READ-ONLY PERSON VIEW -->
+                    <div id="personViewSection" class="section hidden">
+                        <h2>Person Details</h2>
+                        <div class="profile-box">
+                            <input type="hidden" id="viewPersonId" />
+                            <p><strong>Name:</strong> <span id="viewFullName"></span></p>
+                            <p><strong>Other names:</strong> <span id="viewOtherNames"></span></p>
+                            <p><strong>Gender:</strong> <span id="viewGender"></span></p>
+                            <p><strong>Status:</strong> <span id="viewStatus"></span></p>
+                            <p><strong>Birth Date:</strong> <span id="viewBirthDate"></span></p>
+                            <p><strong>Death Date:</strong> <span id="viewDeathDate"></span></p>
+                            <p><strong>Birth Place:</strong> <span id="viewBirthPlace"></span></p>
+                            <p><strong>Relation:</strong> <span id="viewRelation"></span></p>
+                            <p><strong>Biography:</strong><br /><span id="viewBio"></span></p>
+
+                            <div class="profile-actions" style="margin-top:12px;">
+                                <button class="secondary" onclick="showPeople()">Back to List</button>
+                                <button onclick="editPerson(parseInt(document.getElementById('viewPersonId').value, 10))">
+                                    Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PEOPLE LIST -->
+                    <div id="peopleSection" class="section hidden">
+                        <h2>People</h2>
+                        <div class="section-toolbar">
+                            <button onclick="loadPeople()">Refresh List</button>
+                            <button class="secondary" onclick="showAddPerson()">Add Person</button>
+                        </div>
+                        <div id="peopleList"></div>
+                    </div>
+
+                    <!-- RELATIONSHIPS (form + list) -->
+                    <div id="relationshipsSection" class="section hidden">
+                        <h2>Relationships</h2>
+                        <div id="relMessage" class="message"></div>
+
+                        <!-- ADD / EDIT RELATIONSHIP FORM -->
+                        <form id="relationshipForm">
+                            <input type="hidden" id="relationshipId" />
+
+                            <label>Person</label>
+                            <select id="relPerson1" required>
+                                <option value="">Select person...</option>
+                            </select>
+
+                            <label>Relation</label>
+                            <select id="relType" required>
+                                <option value="">Select relation...</option>
+                            </select>
+
+                            <label>Person to whom related</label>
+                            <select id="relPerson2" required>
+                                <option value="">Select person...</option>
+                            </select>
+
+                            <label>Details</label>
+                            <textarea id="relDetails" placeholder="Optional notes about this relationship"></textarea>
+
+                            <div class="relationship-actions">
+                                <button type="submit" id="relSubmitBtn">Add Relationship</button>
+                                <button type="button" class="secondary" onclick="resetRelationshipForm()">Clear</button>
+                            </div>
+                        </form>
+
+                        <!-- RELATIONSHIPS LIST -->
+                        <div id="relationshipsList" class="relationships-list"></div>
+                    </div>
+
+                    <!-- EVENTS (form + list) -->
+                    <div id="eventsSection" class="section hidden">
+                        <h2>Events</h2>
+                        <div id="eventMessage" class="message"></div>
+
+                        <!-- ADD / EDIT EVENT FORM -->
+                        <form id="eventForm">
+                            <input type="hidden" id="eventId" />
+
+                            <label>Person</label>
+                            <select id="eventPerson" required>
+                                <option value="">Select person...</option>
+                            </select>
+
+                            <label>Title</label>
+                            <input id="eventTitle" required />
+
+                            <label>Date</label>
+                            <input id="eventDate" type="date" />
+
+                            <label>Place</label>
+                            <input id="eventPlace" />
+
+                            <label>Description</label>
+                            <textarea id="eventDescription"></textarea>
+
+                            <div class="relationship-actions">
+                                <button type="submit" id="eventSubmitBtn">Add Event</button>
+                                <button type="button" class="secondary" onclick="resetEventForm()">Clear</button>
+                            </div>
+                        </form>
+
+                        <!-- EVENTS LIST -->
+                        <div id="eventsList" class="relationships-list"></div>
+                    </div>
+
+                </div> <!-- /main-content -->
+            </div> <!-- /layout -->
+        </div> <!-- /container -->
+    </div> <!-- /appScreen -->
+
+    <script src="app.js"></script>
+</body>
+</html>
+
