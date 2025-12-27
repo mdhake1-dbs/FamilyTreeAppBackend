@@ -5,14 +5,14 @@
 set -e  # exit if any command fails
 
 # Load credentials
-if [ ! -f github_credentials.env ]; then
+if [ ! -f $HOME/FamilyTreeAppBackend/helper_scripts/github_credentials.env ]; then
   echo "github_credentials.env not found! Create it first."
   exit 1
 fi
-source github_credentials.env
+source $HOME/FamilyTreeAppBackend/helper_scripts/github_credentials.env
 
 # Navigate to project folder
-cd $HOME/FamilyTree || exit 1
+cd $HOME/FamilyTreeAppBackend || exit 1
 
 # Git Initialization
 git init

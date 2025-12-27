@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 resource "aws_key_pair" "deployer" {
-  key_name   = "deployer-key"
+  key_name   = "deployer-key-v3"
   public_key = file(var.public_key_path)
 }
 
@@ -36,6 +36,6 @@ resource "aws_instance" "web" {
   key_name                    = aws_key_pair.deployer.key_name
   vpc_security_group_ids      = [aws_security_group.web_sg.id]
   associate_public_ip_address = true
-  tags = { Name = "automation-web" }
+  tags = { Name = "mobile-app-backend" }
 }
 

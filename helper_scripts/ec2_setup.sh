@@ -1,52 +1,94 @@
 #!/bin/bash
-set -e # Exit immediately if any command fails
+set -euo pipefail
 
-# Define the relative paths to subdirectories
 TERRAFORM_DIR="./terraform"
-ANSIBLE_INVENTORY_FILE="./ansible/hosts.ini"
+ANSIBLE_INVENTORY_FILE="./ansible/hosts.tmp"
 ANSIBLE_PLAYBOOK_FILE="./ansible/playbook.yml"
+PRIVATE_KEY="${HOME}/.ssh/id_rsa"
 
-# 1. Run Terraform Apply and Capture the IP
-echo "--- Running Terraform Apply ---"
+DOMAIN="familytreeapp.duckdns.org"
+EMAIL="your_real_email@gmail.com"
+CONTAINER_NAME="familytreeapp"
+NGINX_SITE="/etc/nginx/sites-available/familytreeapp"
 
+export ANSIBLE_HOST_KEY_CHECKING=False
+
+cleanup() {
+  [[ -f "$ANSIBLE_INVENTORY_FILE" ]] && rm -f "$ANSIBLE_INVENTORY_FILE"
+}
+trap cleanup EXIT
+
+echo "--- Terraform Apply ---"
 terraform -chdir="$TERRAFORM_DIR" init
-#terraform -chdir="$TERRAFORM_DIR" apply
 terraform -chdir="$TERRAFORM_DIR" apply -auto-approve
 
-echo "--- Capturing Instance IP ---"
-if ! command -v jq &> /dev/null; then
-    echo "ERROR: 'jq' is not installed. Please install it to use the robust JSON parsing."
-    exit 1
-fi
-
+echo "--- Fetching EC2 IP ---"
 INSTANCE_IP=$(terraform -chdir="$TERRAFORM_DIR" output -json instance_public_ip | jq -r)
+[[ -z "$INSTANCE_IP" || "$INSTANCE_IP" == "null" ]] && exit 1
 
-if [ -z "$INSTANCE_IP" ]; then
-    echo "ERROR: Failed to capture instance IP from Terraform output. Check the output name (web_instance_ip)."
-    exit 1
-fi
-echo "New EC2 Instance IP: $INSTANCE_IP"
-echo "Access Application @ http://$INSTANCE_IP "
-
-echo "--- Cleaning old SSH host key (if any) ---"
 ssh-keygen -R "$INSTANCE_IP" || true
+ssh -o StrictHostKeyChecking=no -i "$PRIVATE_KEY" ubuntu@"$INSTANCE_IP" "exit" || true
 
-echo "--- Pre-accepting SSH host key ---"
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$INSTANCE_IP" "exit" || true
+cat > "$ANSIBLE_INVENTORY_FILE" <<EOF
+[web]
+${INSTANCE_IP} ansible_user=ubuntu ansible_ssh_private_key_file=${PRIVATE_KEY}
+EOF
 
-# 2. Update Ansible Inventory
-echo "--- Updating Ansible Inventory (hosts.ini) ---"
-sed -i "s/YOUR_INSTANCE_IP/$INSTANCE_IP/g" "$ANSIBLE_INVENTORY_FILE"
+echo "--- Running Ansible ---"
+ansible-playbook -i "$ANSIBLE_INVENTORY_FILE" "$ANSIBLE_PLAYBOOK_FILE" --private-key "$PRIVATE_KEY"
 
-# 3. Run Ansible Provisioning
-echo "--- Running Ansible Provisioning (Docker Install) ---"
-ansible-playbook -i "$ANSIBLE_INVENTORY_FILE" "$ANSIBLE_PLAYBOOK_FILE" --private-key ~/.ssh/id_rsa
+echo "--- HTTPS + Nginx Automation ---"
+ssh -i "$PRIVATE_KEY" ubuntu@"$INSTANCE_IP" <<'EOF'
+set -e
 
-# 4. Cleanup
-echo "--- Cleaning up Inventory placeholder ---"
-# Revert the IP to the placeholder for the next run
-sed -i "s/$INSTANCE_IP/YOUR_INSTANCE_IP/g" "$ANSIBLE_INVENTORY_FILE"
+CONTAINER_NAME="familytreeapp"
+DOMAIN="familytreeapp.duckdns.org"
+EMAIL="your_real_email@gmail.com"
 
-echo "--- Infrastructure Provisioned. Ready for CI/CD Deployment. ---"
-echo "New EC2 Instance IP: $INSTANCE_IP"
-echo "Access Application @ http://$INSTANCE_IP "
+sudo systemctl restart nginx
+sudo docker stop "${CONTAINER_NAME}" || true
+
+if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
+  sudo certbot --nginx \
+    -d "${DOMAIN}" \
+    -m "${EMAIL}" \
+    --agree-tos \
+    --non-interactive \
+    --redirect
+fi
+
+sudo tee /etc/nginx/sites-available/familytreeapp > /dev/null <<'NGINX'
+server {
+    listen 80;
+    server_name familytreeapp.duckdns.org;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name familytreeapp.duckdns.org;
+
+    ssl_certificate /etc/letsencrypt/live/familytreeapp.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/familytreeapp.duckdns.org/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+NGINX
+
+sudo ln -sf /etc/nginx/sites-available/familytreeapp /etc/nginx/sites-enabled/familytreeapp
+sudo rm -f /etc/nginx/sites-enabled/default
+
+sudo nginx -t
+sudo systemctl reload nginx
+sudo docker start "${CONTAINER_NAME}"
+EOF
+
+echo "--- DONE ---"
+echo "App available at: https://${DOMAIN}"
+
