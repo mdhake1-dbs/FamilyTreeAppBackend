@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "Backend update to include Image uploads"
+git commit -m "Pipeline Update to run Docker on port 8080"
 git branch -M main
 git push -u origin main
 

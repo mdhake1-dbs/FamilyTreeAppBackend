@@ -57,7 +57,7 @@ jobs:
 
             sudo docker run -d \
               --name familytreeapp \
-              -p 127.0.0.1:80:80 \
+              -p 127.0.0.1:8080:80 \
               --restart always \
               -u 1000:1000 \
               -v /home/ubuntu/familytree-data:/app/data \
