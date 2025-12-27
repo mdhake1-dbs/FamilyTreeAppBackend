@@ -8,9 +8,12 @@ from .people_routes import people_bp
 from .relationships_routes import relationships_bp
 from .events_routes import events_bp
 from .misc_routes import misc_bp
+from .user_routes import users_bp
+
 
 __all__ = [
     'auth_bp',
+    'users_bp',
     'people_bp',
     'relationships_bp',
     'events_bp',
