@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "Fix for Python Import Error"
+git commit -m "Re - deploy"
 git branch -M main
 git push -u origin main
 
