@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "Updated Readme with all references"
+git commit -m "Updated Backend to Accomodate Image uploads"
 git branch -M main
 git push -u origin main
 

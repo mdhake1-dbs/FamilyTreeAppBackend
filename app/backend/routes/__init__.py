@@ -28,6 +28,7 @@ def register_routes(app):
     # Register API blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(people_bp)
+    app.register_blueprint(users_bp)
     app.register_blueprint(relationships_bp)
     app.register_blueprint(events_bp)
     

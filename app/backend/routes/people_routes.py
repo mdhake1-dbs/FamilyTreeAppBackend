@@ -1,11 +1,45 @@
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
+
 from ..database import get_db_connection
 from ..auth_utils import require_auth
+from ..utils.uploads import allowed_file
 
 people_bp = Blueprint('people', __name__, url_prefix='/api/people')
 
-#app.js Line no 302, 325
+
+@people_bp.route('/<int:person_id>/photo', methods=['POST'])
+@require_auth
+def upload_person_photo(person_id):
+    """Upload or update photo for a person."""
+    file = request.files.get('photo')
+
+    if not file or not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file'}), 400
+
+    person_dir = f'uploads/people/{person_id}'
+    os.makedirs(person_dir, exist_ok=True)
+
+    filename = secure_filename(file.filename)
+    path = os.path.join(person_dir, filename)
+    file.save(path)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE People
+        SET photo = ?, updated_at = ?
+        WHERE id = ? AND user_id = ?
+        """,
+        (path, datetime.now().isoformat(), person_id, g.current_user['id'])
+    )
+    conn.commit()
+
+    return jsonify({'success': True, 'photo': path}), 200
+
 
 @people_bp.route('', methods=['GET'])
 @require_auth
@@ -16,7 +50,7 @@ def get_all_people():
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, given_name, family_name, other_names, gender,
+            SELECT id, given_name, family_name, photo, other_names, gender,
                    birth_date, death_date, birth_place, bio, relation,
                    created_at, updated_at
             FROM People
@@ -32,7 +66,6 @@ def get_all_people():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-#app.js Line no 371
 @people_bp.route('/<int:person_id>', methods=['GET'])
 @require_auth
 def get_person(person_id):
@@ -42,7 +75,7 @@ def get_person(person_id):
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, given_name, family_name, other_names, gender,
+            SELECT id, given_name, family_name, photo, other_names, gender,
                    birth_date, death_date, birth_place, bio, relation,
                    created_at, updated_at
             FROM People
@@ -56,6 +89,7 @@ def get_person(person_id):
         return jsonify({'success': True, 'data': dict(row)}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @people_bp.route('', methods=['POST'])
 @require_auth
@@ -100,6 +134,7 @@ def create_person():
         return jsonify({'success': True, 'message': 'Person created successfully', 'id': int(new_id)}), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @people_bp.route('/<int:person_id>', methods=['PUT'])
 @require_auth
@@ -157,6 +192,7 @@ def update_person(person_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 @people_bp.route('/<int:person_id>', methods=['DELETE'])
 @require_auth
 def delete_person(person_id):
@@ -189,3 +225,4 @@ def delete_person(person_id):
         return jsonify({'success': True, 'message': 'Person deleted successfully'}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
