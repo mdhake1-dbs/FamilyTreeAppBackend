@@ -32,6 +32,7 @@
           - nginx
           - certbot
           - python3-certbot-nginx
+          - sqlite3
         state: present
         update_cache: yes
 

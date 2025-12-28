@@ -34,4 +34,4 @@ ENV FLASK_APP=backend/main.py
 USER appuser
 
 # prefer gunicorn if installed; fallback to direct run
-CMD ["sh", "-c", "if command -v gunicorn >/dev/null 2>&1; then exec gunicorn -b 0.0.0.0:80 backend.main:app; else exec python3 backend/main.py; fi"]
+CMD ["sh", "-c", "if command -v gunicorn >/dev/null 2>&1; then exec gunicorn -b 0.0.0.0:80 backend.main:app --access-logfile - --error-logfile -; else exec python3 backend/main.py; fi"]

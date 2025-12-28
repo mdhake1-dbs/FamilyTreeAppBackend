@@ -42,7 +42,7 @@ ssh -i "$PRIVATE_KEY" ubuntu@"$INSTANCE_IP" <<'EOF'
 set -euo pipefail
 
 DOMAIN="familytreeapp.duckdns.org"
-EMAIL="your_real_email@gmail.com"
+EMAIL="admin@gmail.com"
 CONTAINER_NAME="familytreeapp"
 NGINX_SITE="/etc/nginx/sites-available/familytreeapp"
 
@@ -84,4 +84,3 @@ EOF
 
 echo "--- DONE ---"
 echo "App available at: https://${DOMAIN}"
-

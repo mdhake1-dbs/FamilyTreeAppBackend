@@ -1,3 +1,12 @@
+provider "aws" {
+  region = var.aws_region
+}
+
+resource "aws_key_pair" "deployer" {
+  key_name   = "deployer-key_v2"
+  public_key = file(var.public_key_path)
+}
+
 resource "aws_security_group" "web_sg" {
   name_prefix = "web-sg-"
   description = "Allow SSH, HTTP, and HTTPS"
