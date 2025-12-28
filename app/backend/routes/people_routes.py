@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify, g
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from PIL import Image
+import io
 
 from ..database import get_db_connection
 from ..auth_utils import require_auth
@@ -9,22 +11,49 @@ from ..utils.uploads import allowed_file
 
 people_bp = Blueprint('people', __name__, url_prefix='/api/people')
 
+def save_resized_image(file, path, size=(256, 256), quality=75):
+    try:
+        img = Image.open(file)
+    except UnidentifiedImageError:
+        raise ValueError("Uploaded file is not a valid image")
 
+    if img.mode in ("RGBA", "LA"):
+        background = Image.new("RGB", img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1])
+        img = background
+    else:
+        img = img.convert("RGB")
+
+    img.thumbnail(size)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    img.save(path, format="JPEG", quality=quality, optimize=True)
+    
 @people_bp.route('/<int:person_id>/photo', methods=['POST'])
 @require_auth
 def upload_person_photo(person_id):
-    """Upload or update photo for a person."""
     file = request.files.get('photo')
 
-    if not file or not allowed_file(file.filename):
-        return jsonify({'success': False, 'error': 'Invalid file'}), 400
+    if not file:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
 
-    person_dir = f'uploads/people/{person_id}'
-    os.makedirs(person_dir, exist_ok=True)
+    # Absolute base upload directory
+    base_upload_dir = "/app/uploads/people"
+    filename = "photo.jpg"
+    full_path = os.path.join(base_upload_dir, str(person_id), filename)
 
-    filename = secure_filename(file.filename)
-    path = os.path.join(person_dir, filename)
-    file.save(path)
+    try:
+        save_resized_image(
+            file,
+            full_path,
+            size=(256, 256),
+            quality=75
+        )
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+    # Relative path stored in DB
+    db_path = f"uploads/people/{person_id}/{filename}"
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -34,12 +63,11 @@ def upload_person_photo(person_id):
         SET photo = ?, updated_at = ?
         WHERE id = ? AND user_id = ?
         """,
-        (path, datetime.now().isoformat(), person_id, g.current_user['id'])
+        (db_path, datetime.now().isoformat(), person_id, g.current_user['id'])
     )
     conn.commit()
 
-    return jsonify({'success': True, 'photo': path}), 200
-
+    return jsonify({'success': True, 'photo': db_path}), 200
 
 @people_bp.route('', methods=['GET'])
 @require_auth

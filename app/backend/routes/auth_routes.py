@@ -16,8 +16,15 @@ def register():
         email = (data.get('email') or '').strip()
         full_name = (data.get('full_name') or '').strip()
 
-        if not username or not password:
-            return jsonify({'success': False, 'error': 'Username and password are required'}), 400
+        if not username:
+            return jsonify({'success': False, 'field': 'username', 'error': 'Username is required'}), 400
+
+        if not email:
+            return jsonify({'success': False, 'field': 'email', 'error': 'Email is required'}), 400
+
+        if not password:
+            return jsonify({'success': False, 'field': 'password', 'error': 'Password is required'}), 400
+
 
         if len(password) < 6:
             return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
@@ -27,7 +34,19 @@ def register():
 
         cursor.execute("SELECT id FROM Users WHERE username = ?", (username,))
         if cursor.fetchone():
-            return jsonify({'success': False, 'error': 'Username already exists'}), 400
+            return jsonify({
+                'success': False,
+                'field': 'username',
+                'error': 'Username already exists'
+            }), 400
+
+        cursor.execute("SELECT id FROM Users WHERE email = ?", (email,))
+        if cursor.fetchone():
+            return jsonify({
+                'success': False,
+                'field': 'email',
+                'error': 'Email already registered'
+            }), 400
 
         now_iso = datetime.now().isoformat()
         password_hash = hash_password(password)
@@ -46,7 +65,11 @@ def register():
         return jsonify({'success': True, 'message': 'User registered successfully', 'user_id': int(user_id)}), 201
 
     except sqlite3.IntegrityError:
-        return jsonify({'success': False, 'error': 'Username or email already exists'}), 400
+        return jsonify({
+            'success': False,
+            'error': 'Duplicate entry'
+        }), 400
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

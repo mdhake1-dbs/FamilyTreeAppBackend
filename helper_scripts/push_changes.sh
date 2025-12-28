@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "Fixed Github CI-CD Deploy Issue"
+git commit -m "Updated Image Compression Logic"
 git branch -M main
 git push -u origin main
 
