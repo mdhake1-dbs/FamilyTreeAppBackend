@@ -68,7 +68,7 @@ jobs:
             sleep 5
 
             if sudo docker ps | grep -q familytreeapp; then
-              if curl -f http://127.0.0.1/api/health > /dev/null 2>&1; then
+              if curl -f http://127.0.0.1:8080/api/health > /dev/null 2>&1; then
                 echo "Health check passed"
               else
                 echo "Health endpoint not responding"
