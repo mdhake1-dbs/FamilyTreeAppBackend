@@ -8,7 +8,7 @@ BASE_DIR = os.path.abspath(
 
 class Config:
     """Application configuration"""
-
+    UPLOAD_FOLDER = "/app/uploads"
     DB_PATH = os.getenv(
         "SQLITE_DB_PATH",
         os.path.join(BASE_DIR, "data", "familytree.db")
@@ -21,4 +21,5 @@ class Config:
 
     SESSION_EXPIRY_DAYS = 7
     MIN_PASSWORD_LENGTH = 6
+
 

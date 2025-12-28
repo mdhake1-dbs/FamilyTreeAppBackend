@@ -26,7 +26,15 @@ app.teardown_appcontext(close_db_connection)
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    upload_dir = app.config.get('UPLOAD_FOLDER')
+    if not upload_dir:
+        abort(500, "UPLOAD_FOLDER not configured")
+
+    full_path = os.path.join(upload_dir, filename)
+    if not os.path.isfile(full_path):
+        abort(404)
+
+    return send_from_directory(upload_dir, filename)
 
 if __name__ == '__main__':
     # Ensure database directory exists
