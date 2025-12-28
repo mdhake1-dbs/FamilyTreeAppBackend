@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "deploy Test"
+git commit -m "Updated Terraform to allow Port 443 Inbound Traffic"
 git branch -M main
 git push -u origin main
 

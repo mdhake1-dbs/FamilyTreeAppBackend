@@ -37,56 +37,49 @@ EOF
 echo "--- Running Ansible ---"
 ansible-playbook -i "$ANSIBLE_INVENTORY_FILE" "$ANSIBLE_PLAYBOOK_FILE" --private-key "$PRIVATE_KEY"
 
-echo "--- HTTPS + Nginx Automation ---"
+echo "--- Nginx + HTTPS automation ---"
 ssh -i "$PRIVATE_KEY" ubuntu@"$INSTANCE_IP" <<'EOF'
-set -e
+set -euo pipefail
 
-CONTAINER_NAME="familytreeapp"
 DOMAIN="familytreeapp.duckdns.org"
 EMAIL="your_real_email@gmail.com"
+CONTAINER_NAME="familytreeapp"
+NGINX_SITE="/etc/nginx/sites-available/familytreeapp"
 
-sudo systemctl restart nginx
-sudo docker stop "${CONTAINER_NAME}" || true
-
-if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
-  sudo certbot --nginx \
-    -d "${DOMAIN}" \
-    -m "${EMAIL}" \
-    --agree-tos \
-    --non-interactive \
-    --redirect
-fi
-
-sudo tee /etc/nginx/sites-available/familytreeapp > /dev/null <<'NGINX'
+# Ensure HTTP config exists (do not overwrite)
+if [ ! -f "$NGINX_SITE" ]; then
+  sudo tee "$NGINX_SITE" > /dev/null <<'NGINX'
 server {
     listen 80;
     server_name familytreeapp.duckdns.org;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name familytreeapp.duckdns.org;
-
-    ssl_certificate /etc/letsencrypt/live/familytreeapp.duckdns.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/familytreeapp.duckdns.org/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 NGINX
 
-sudo ln -sf /etc/nginx/sites-available/familytreeapp /etc/nginx/sites-enabled/familytreeapp
-sudo rm -f /etc/nginx/sites-enabled/default
+  sudo ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/familytreeapp
+fi
 
 sudo nginx -t
 sudo systemctl reload nginx
-sudo docker start "${CONTAINER_NAME}"
+
+# Obtain cert if missing
+if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
+  sudo certbot --nginx \
+    -d "$DOMAIN" \
+    -m "$EMAIL" \
+    --agree-tos \
+    --non-interactive
+fi
+
+sudo systemctl reload nginx
+sudo docker restart "$CONTAINER_NAME"
 EOF
 
 echo "--- DONE ---"
