@@ -7,13 +7,15 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # system deps required for sqlite and building wheels (kept minimal)
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libsqlite3-dev \
     sqlite3 \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpng-dev \
  && rm -rf /var/lib/apt/lists/*
-
+    
 # copy application code
 COPY . /app
 

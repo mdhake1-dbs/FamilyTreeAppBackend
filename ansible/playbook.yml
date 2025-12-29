@@ -82,6 +82,14 @@
         owner: "{{ container_user_name }}"
         group: "{{ container_user_name }}"
         mode: "0755"
+        
+    - name: Ensure uploads directory exists
+      file:
+        path: /home/ubuntu/familytree-data/uploads
+        state: directory
+        owner: "{{ container_user_name }}"
+        group: "{{ container_user_name }}"
+        mode: "0755"
 
     - name: Sync app code
       synchronize:
@@ -121,6 +129,7 @@
           - "8080:80"
         volumes:
           - /home/ubuntu/familytree-data:/app/data
+          - /home/ubuntu/familytree-data/uploads:/app/uploads
         env:
           SQLITE_DB_PATH: /app/data/familytree.db
         user: "{{ container_user_uid }}:{{ container_user_uid }}"

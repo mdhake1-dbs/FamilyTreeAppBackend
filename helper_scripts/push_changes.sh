@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "Updated Image Compression Logic"
+git commit -m "Backend Update to add GeoLocations"
 git branch -M main
 git push -u origin main
 
