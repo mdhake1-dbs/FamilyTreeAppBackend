@@ -20,6 +20,7 @@ def list_events():
             e.place,
             e.place_lat,
             e.place_lng,
+            e.place_digipin,
             e.description,
             e.created_by,
             p.given_name || ' ' || p.family_name AS person_name
@@ -58,19 +59,21 @@ def create_event():
             place,
             place_lat,
             place_lng,
+            place_digipin,
             description,
             created_by,
             user_id,
             created_at,
             updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         title,
         data.get('event_date'),
         data.get('place'),
         data.get('place_lat'),
         data.get('place_lng'),
+        data.get('place_digipin'),
         data.get('description'),
         person_id,
         g.current_user['id'],
@@ -97,6 +100,7 @@ def get_event(event_id):
             e.place,
             e.place_lat,
             e.place_lng,
+            e.place_digipin,
             e.description,
             e.created_by,
             p.given_name || ' ' || p.family_name AS person_name
@@ -110,9 +114,7 @@ def get_event(event_id):
     if not row:
         return jsonify({'success': False, 'error': 'Event not found'}), 404
 
-    event = dict(row)
-
-    return jsonify({'success': True, 'data': event}), 200
+    return jsonify({'success': True, 'data': dict(row)}), 200
 
 
 @events_bp.route('/<int:event_id>', methods=['PUT'])
@@ -138,6 +140,7 @@ def update_event(event_id):
             place = ?,
             place_lat = ?,
             place_lng = ?,
+            place_digipin = ?,
             description = ?,
             created_by = ?,
             updated_at = ?
@@ -148,6 +151,7 @@ def update_event(event_id):
         data.get('place'),
         data.get('place_lat'),
         data.get('place_lng'),
+        data.get('place_digipin'),
         data.get('description'),
         person_id,
         now,

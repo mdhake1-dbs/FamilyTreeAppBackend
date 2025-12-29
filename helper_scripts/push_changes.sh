@@ -20,7 +20,7 @@ fi
 
 # Stage, commit, and push
 git add .
-git commit -m "Updated Broken Event Routes"
+git commit -m "Updated To eneable Digipin Locations"
 git branch -M main
 git push -u origin main
 

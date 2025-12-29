@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime
 import os
-from werkzeug.utils import secure_filename
 from PIL import Image, UnidentifiedImageError
 
 from ..database import get_db_connection
@@ -67,7 +66,7 @@ def get_all_people():
         SELECT
             id, given_name, family_name, photo, other_names, gender,
             birth_date, death_date,
-            birth_place, birth_lat, birth_lng,
+            birth_place, birth_lat, birth_lng, birth_digipin,
             bio, relation,
             created_at, updated_at
         FROM People
@@ -87,7 +86,7 @@ def get_person(person_id):
         SELECT
             id, given_name, family_name, photo, other_names, gender,
             birth_date, death_date,
-            birth_place, birth_lat, birth_lng,
+            birth_place, birth_lat, birth_lng, birth_digipin,
             bio, relation,
             created_at, updated_at
         FROM People
@@ -117,11 +116,11 @@ def create_person():
         INSERT INTO People (
             given_name, family_name, other_names, gender,
             birth_date, death_date,
-            birth_place, birth_lat, birth_lng,
+            birth_place, birth_lat, birth_lng, birth_digipin,
             bio, relation,
             created_at, updated_at, is_deleted, user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     """, (
         data.get('given_name'),
         data.get('family_name'),
@@ -132,6 +131,7 @@ def create_person():
         data.get('birth_place'),
         data.get('birth_lat'),
         data.get('birth_lng'),
+        data.get('birth_digipin'),
         data.get('bio'),
         data.get('relation'),
         now,
@@ -162,6 +162,7 @@ def update_person(person_id):
             birth_place = ?,
             birth_lat = ?,
             birth_lng = ?,
+            birth_digipin = ?,
             bio = ?,
             relation = ?,
             updated_at = ?
@@ -176,6 +177,7 @@ def update_person(person_id):
         data.get('birth_place'),
         data.get('birth_lat'),
         data.get('birth_lng'),
+        data.get('birth_digipin'),
         data.get('bio'),
         data.get('relation'),
         now,
