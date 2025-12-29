@@ -11,6 +11,7 @@ events_bp = Blueprint('events', __name__, url_prefix='/api/events')
 def list_events():
     conn = get_db_connection()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT
             e.id,
@@ -29,7 +30,8 @@ def list_events():
     """, (g.current_user['id'],))
 
     rows = cur.fetchall()
-    data = [dict(r) for r in rows]
+    data = [dict(row) for row in rows]
+
     return jsonify({'success': True, 'data': data}), 200
 
 
@@ -38,7 +40,7 @@ def list_events():
 def create_event():
     data = request.get_json() or {}
 
-    person_id = data.get('created_by') or data.get('person_id')
+    person_id = data.get('created_by')
     title = data.get('title', '').strip()
 
     if not person_id or not title:
@@ -48,12 +50,19 @@ def create_event():
 
     conn = get_db_connection()
     cur = conn.cursor()
+
     cur.execute("""
         INSERT INTO Events (
-            title, event_date, place,
-            place_lat, place_lng,
-            description, created_by,
-            user_id, created_at, updated_at
+            title,
+            event_date,
+            place,
+            place_lat,
+            place_lng,
+            description,
+            created_by,
+            user_id,
+            created_at,
+            updated_at
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
@@ -68,9 +77,42 @@ def create_event():
         now,
         now
     ))
+
     conn.commit()
 
     return jsonify({'success': True, 'id': cur.lastrowid}), 201
+
+
+@events_bp.route('/<int:event_id>', methods=['GET'])
+@require_auth
+def get_event(event_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            e.id,
+            e.title,
+            e.event_date,
+            e.place,
+            e.place_lat,
+            e.place_lng,
+            e.description,
+            e.created_by,
+            p.given_name || ' ' || p.family_name AS person_name
+        FROM Events e
+        LEFT JOIN People p ON e.created_by = p.id
+        WHERE e.id = ? AND e.user_id = ?
+    """, (event_id, g.current_user['id']))
+
+    row = cur.fetchone()
+
+    if not row:
+        return jsonify({'success': False, 'error': 'Event not found'}), 404
+
+    event = dict(row)
+
+    return jsonify({'success': True, 'data': event}), 200
 
 
 @events_bp.route('/<int:event_id>', methods=['PUT'])
@@ -78,7 +120,7 @@ def create_event():
 def update_event(event_id):
     data = request.get_json() or {}
 
-    person_id = data.get('created_by') or data.get('person_id')
+    person_id = data.get('created_by')
     title = data.get('title', '').strip()
 
     if not person_id or not title:
@@ -88,6 +130,7 @@ def update_event(event_id):
 
     conn = get_db_connection()
     cur = conn.cursor()
+
     cur.execute("""
         UPDATE Events SET
             title = ?,
@@ -111,7 +154,11 @@ def update_event(event_id):
         event_id,
         g.current_user['id']
     ))
+
     conn.commit()
+
+    if cur.rowcount == 0:
+        return jsonify({'success': False, 'error': 'Event not found'}), 404
 
     return jsonify({'success': True, 'message': 'Event updated successfully'}), 200
 
@@ -121,11 +168,16 @@ def update_event(event_id):
 def delete_event(event_id):
     conn = get_db_connection()
     cur = conn.cursor()
+
     cur.execute("""
         DELETE FROM Events
         WHERE id = ? AND user_id = ?
     """, (event_id, g.current_user['id']))
+
     conn.commit()
+
+    if cur.rowcount == 0:
+        return jsonify({'success': False, 'error': 'Event not found'}), 404
 
     return jsonify({'success': True, 'message': 'Event deleted successfully'}), 200
 

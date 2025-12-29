@@ -5,11 +5,13 @@ from ..auth_utils import require_auth
 
 relationships_bp = Blueprint('relationships', __name__, url_prefix='/api/relationships')
 
+
 @relationships_bp.route('/types', methods=['GET'])
 @require_auth
 def get_relationship_types():
     """Return the fixed list of relationship types."""
     return jsonify({'success': True, 'data': current_app.config['RELATION_TYPES']}), 200
+
 
 @relationships_bp.route('', methods=['GET'])
 @require_auth
@@ -49,6 +51,7 @@ def get_relationships():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 @relationships_bp.route('/<int:rel_id>', methods=['GET'])
 @require_auth
 def get_relationship(rel_id):
@@ -76,6 +79,8 @@ def get_relationship(rel_id):
             WHERE r.id = ?
               AND p1.user_id = ?
               AND p2.user_id = ?
+              AND p1.is_deleted = 0
+              AND p2.is_deleted = 0
             """,
             (rel_id, g.current_user['id'], g.current_user['id'])
         )
@@ -85,6 +90,7 @@ def get_relationship(rel_id):
         return jsonify({'success': True, 'data': dict(row)}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @relationships_bp.route('', methods=['POST'])
 @require_auth
@@ -140,6 +146,7 @@ def create_relationship():
         return jsonify({'success': True, 'message': 'Relationship created successfully', 'id': int(new_id)}), 201
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @relationships_bp.route('/<int:rel_id>', methods=['PUT'])
 @require_auth
@@ -210,9 +217,13 @@ def update_relationship(rel_id):
         )
         conn.commit()
 
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'error': 'No changes made'}), 400
+
         return jsonify({'success': True, 'message': 'Relationship updated successfully'}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @relationships_bp.route('/<int:rel_id>', methods=['DELETE'])
 @require_auth
@@ -241,3 +252,4 @@ def delete_relationship(rel_id):
         return jsonify({'success': True, 'message': 'Relationship deleted successfully'}), 200
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
